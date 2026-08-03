@@ -5,3 +5,11 @@ snapshot/
 .wrangler/
 worker/.wrangler/
 
+# 上传脚本生成的进度 / 清单文件（运行时产物，非源码）
+snapshot-upload-progress*.txt
+snapshot-uploaded*.txt
+snapshot-upload-failures.txt
+upload*.log
+probe.txt
+
+

@@ -13,8 +13,9 @@ PAGES_ORIGIN = "https://gudian-book.pages.dev"
 binding = "BOOK_SNAPSHOT"
 bucket_name = "gudian-book-snapshots"
 
-# 让 Worker 拦截 gudian-book.pages.dev 的全部流量
-# 爬虫 UA -> 返回 R2 快照；普通用户 -> 回源 Pages
-[[routes]]
-pattern = "gudian-book.pages.dev/*"
-custom_domain = false
+# 注：本项目改用 Pages Functions（functions/）做爬虫分流，不依赖 Worker 部署权限。
+# 若日后想用 Worker 接管主域名，可在此追加：
+#   [[routes]]
+#   pattern = "gudian-book.pages.dev/*"
+#   custom_domain = false
+# 并需具备 Worker Scripts:Edit 权限的 API Token 执行 `wrangler deploy`。
