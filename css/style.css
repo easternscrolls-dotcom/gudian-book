@@ -99,3 +99,49 @@ header p{
 .hidden{
     display:none;
 }
+
+/* 搜索与分类导航 */
+.toolbar{
+    margin: 10px 0 26px;
+}
+.search-input{
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 14px;
+    font-size: 15px;
+    color: #2c2c2c;
+    background: #fff;
+    border: 1px solid #ddd5c4;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color .15s;
+}
+.search-input:focus{
+    border-color: #8a6d3b;
+}
+.category-bar{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+.cat-chip{
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #5a4535;
+    background: #fff;
+    border: 1px solid #ddd5c4;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .15s;
+}
+.cat-chip:hover{
+    border-color: #8a6d3b;
+    color: #8a6d3b;
+}
+.cat-chip.active{
+    background: #8a6d3b;
+    border-color: #8a6d3b;
+    color: #fff;
+}

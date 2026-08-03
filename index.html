@@ -13,10 +13,18 @@
         <p>收录明清小说、地方志、诸子杂书、传统戏曲（公版古籍）</p>
     </header>
 
+    <!-- 搜索与分类导航（纯前端，对书单数组过滤） -->
+    <div class="toolbar">
+        <input id="searchInput" class="search-input" type="search" placeholder="搜索书名 / 作者……" autocomplete="off">
+        <div id="categoryBar" class="category-bar"></div>
+    </div>
+
     <!-- 加载状态 -->
     <div id="list-loading" class="load-text">正在加载书目……</div>
     <!-- 书单容器（由 books.br / books.json 动态渲染） -->
     <div class="book-list" id="bookListWrap"></div>
+    <!-- 过滤后无结果 -->
+    <div id="list-empty" class="load-text hidden">没有匹配的书目</div>
 </div>
 
 <!-- 书单加载与 Brotli 解压逻辑（原生 DecompressionStream，无外部 CDN） -->
@@ -25,6 +33,9 @@
     (async () => {
         const wrap = document.getElementById("bookListWrap");
         const loading = document.getElementById("list-loading");
+        const emptyEl = document.getElementById("list-empty");
+        const searchInput = document.getElementById("searchInput");
+        const categoryBar = document.getElementById("categoryBar");
 
         let books = [];
         try {
@@ -41,29 +52,77 @@
             loading.className = "load-text error";
             return;
         }
-
         loading.style.display = "none";
 
-        books.forEach((book) => {
-            const item = document.createElement("div");
-            item.className = "book-item";
+        // 去重得到分类列表（保持中文排序），默认「全部」
+        const categories = Array.from(
+            new Set(books.map(b => b.category || "未分类"))
+        ).sort((a, b) => a.localeCompare(b, "zh"));
+        let activeCategory = "全部";
+        let keyword = "";
 
-            const h3 = document.createElement("h3");
-            h3.innerText = book.title || "（无名）";
+        function renderCats() {
+            categoryBar.innerHTML = "";
+            ["全部", ...categories].forEach(cat => {
+                const chip = document.createElement("button");
+                chip.type = "button";
+                chip.className = "cat-chip" + (cat === activeCategory ? " active" : "");
+                chip.textContent = cat;
+                chip.onclick = () => {
+                    activeCategory = cat;
+                    renderCats();
+                    renderBooks();
+                };
+                categoryBar.appendChild(chip);
+            });
+        }
 
-            const desc = document.createElement("div");
-            desc.className = "desc";
-            desc.innerText = book.author || book.category || "佚名";
+        function renderBooks() {
+            const kw = keyword.trim().toLowerCase();
+            const filtered = books.filter(b => {
+                const catOk = activeCategory === "全部" || (b.category || "未分类") === activeCategory;
+                const kwOk = !kw ||
+                    (b.title && b.title.toLowerCase().includes(kw)) ||
+                    (b.author && b.author.toLowerCase().includes(kw));
+                return catOk && kwOk;
+            });
 
-            item.appendChild(h3);
-            item.appendChild(desc);
-            item.onclick = () => {
-                location.href =
-                    "read.html?book=" + encodeURIComponent(book.file) +
-                    "&title=" + encodeURIComponent(book.title || "");
-            };
-            wrap.appendChild(item);
+            wrap.innerHTML = "";
+            if (filtered.length === 0) {
+                emptyEl.classList.remove("hidden");
+                return;
+            }
+            emptyEl.classList.add("hidden");
+
+            filtered.forEach(book => {
+                const item = document.createElement("div");
+                item.className = "book-item";
+
+                const h3 = document.createElement("h3");
+                h3.innerText = book.title || "（无名）";
+
+                const desc = document.createElement("div");
+                desc.className = "desc";
+                desc.innerText = book.author || book.category || "佚名";
+
+                item.appendChild(h3);
+                item.appendChild(desc);
+                item.onclick = () => {
+                    location.href =
+                        "read.html?book=" + encodeURIComponent(book.file) +
+                        "&title=" + encodeURIComponent(book.title || "");
+                };
+                wrap.appendChild(item);
+            });
+        }
+
+        searchInput.addEventListener("input", () => {
+            keyword = searchInput.value;
+            renderBooks();
         });
+
+        renderCats();
+        renderBooks();
     })();
 </script>
 </body>
