@@ -12,3 +12,9 @@ PAGES_ORIGIN = "https://gudian-book.pages.dev"
 [[r2_buckets]]
 binding = "BOOK_SNAPSHOT"
 bucket_name = "gudian-book-snapshots"
+
+# 让 Worker 拦截 gudian-book.pages.dev 的全部流量
+# 爬虫 UA -> 返回 R2 快照；普通用户 -> 回源 Pages
+[[routes]]
+pattern = "gudian-book.pages.dev/*"
+custom_domain = false
