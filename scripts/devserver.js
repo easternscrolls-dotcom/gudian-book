@@ -21,6 +21,7 @@ const MIME = {
     ".css": "text/css; charset=utf-8",
     ".json": "application/json; charset=utf-8",
     ".br": "application/octet-stream",
+    ".wasm": "application/wasm",
     ".md": "text/markdown; charset=utf-8"
 };
 

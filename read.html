@@ -31,12 +31,6 @@
             return;
         }
 
-        if (!nativeBrotliSupported()) {
-            contentEl.innerHTML = '<p class="error">当前浏览器不支持原生 Brotli 解压，请更换为较新版本的 Chrome / Edge / Firefox / Safari。</p>';
-            contentEl.className = "load-text error";
-            return;
-        }
-
         try {
             const text = await loadChapter(bookPath);
             if (text && text.length) {

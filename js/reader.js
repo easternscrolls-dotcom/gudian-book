@@ -12,27 +12,61 @@
 const BOOK_BASE_URL = "";
 
 // ===================== 能力检测 =====================
-// 浏览器是否支持原生 Brotli 解压
+// 浏览器是否支持原生 DecompressionStream('brotli')。
+// 注意：仅判断 typeof 不够 —— 部分浏览器有 DecompressionStream 但不支持 'brotli'
+// 格式，构造时会抛 "Unsupported compression format: 'brotli'"，必须真实试构造。
+let _nativeBrotliCache = null;
 function nativeBrotliSupported() {
-    return typeof DecompressionStream !== "undefined";
+    if (_nativeBrotliCache !== null) return _nativeBrotliCache;
+    try {
+        new DecompressionStream("brotli");
+        _nativeBrotliCache = true;
+    } catch (e) {
+        _nativeBrotliCache = false;
+    }
+    return _nativeBrotliCache;
+}
+
+// ===================== WASM 兜底解码器（brotli-dec-wasm，本地 vendor） =====================
+// 当浏览器不支持原生 brotli 解压时，懒加载本地 vendor 的 WASM 解码器，
+// 让老旧浏览器（旧 Firefox / 部分 WebView 等）也能正常阅读，而不是直接报错。
+let _wasmBrotli = null;
+let _wasmLoading = null;
+async function getWasmBrotli() {
+    if (_wasmBrotli) return _wasmBrotli;
+    if (!_wasmLoading) {
+        // index.js 默认导出是 init() 返回的 module（命名空间，含 decompress）
+        _wasmLoading = import("/vendor/brotli-dec-wasm/index.js").then((m) => m.default);
+    }
+    _wasmBrotli = await _wasmLoading; // m.default 是 promise，await 得到命名空间 module
+    return _wasmBrotli;
 }
 
 // ===================== 核心函数：解压响应流 =====================
-// 把 fetch 回来的 .br 响应流，用原生 DecompressionStream 解压为纯文本
+// 优先使用浏览器原生 DecompressionStream('brotli') 流式解压（内存友好）；
+// 若浏览器不支持 brotli 格式，自动回退到本地 WASM 解码器，保证可用。
 async function decompressBrotliResponse(resp) {
-    if (!nativeBrotliSupported()) {
-        throw new Error("当前浏览器不支持原生 Brotli 解压（DecompressionStream），请升级到 2020 年后的主流浏览器");
+    if (nativeBrotliSupported()) {
+        try {
+            let stream;
+            if (resp.body && typeof resp.body.pipeThrough === "function") {
+                // 推荐路径：直接对流做流式解压，内存占用小
+                stream = resp.body.pipeThrough(new DecompressionStream("brotli"));
+            } else {
+                // 兜底：个别环境 resp.body 不可用，先取 arrayBuffer 再走流
+                const buf = await resp.arrayBuffer();
+                stream = new Response(buf).body.pipeThrough(new DecompressionStream("brotli"));
+            }
+            return await new Response(stream).text();
+        } catch (e) {
+            console.warn("原生 brotli 解压失败，回退 WASM 解码器：", e);
+            // 落到下面的 WASM 兜底
+        }
     }
-    let stream;
-    if (resp.body && typeof resp.body.pipeThrough === "function") {
-        // 推荐路径：直接对流做流式解压，内存占用小
-        stream = resp.body.pipeThrough(new DecompressionStream("brotli"));
-    } else {
-        // 兜底：个别环境 resp.body 不可用，先取 arrayBuffer 再走流
-        const buf = await resp.arrayBuffer();
-        stream = new Response(buf).body.pipeThrough(new DecompressionStream("brotli"));
-    }
-    return await new Response(stream).text();
+    const brotli = await getWasmBrotli();
+    const bytes = new Uint8Array(await resp.arrayBuffer());
+    const out = brotli.decompress(bytes);
+    return new TextDecoder("utf-8").decode(out);
 }
 
 // ===================== 加载书单 =====================

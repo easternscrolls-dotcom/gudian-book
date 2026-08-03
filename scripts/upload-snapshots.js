@@ -76,7 +76,7 @@ function uploadOne(file) {
     }
     const all = listHtml(SNAP_DIR);
     const uploaded = loadSet(DONE_FILE);
-    let files = all.filter(f => !uploaded.has("snapshot/" + path.relative(SNAP_DIR, f).split(path.sep).join("/")));
+    let files = all.filter(f => !uploaded.has(BUCKET + "/snapshot/" + path.relative(SNAP_DIR, f).split(path.sep).join("/")));
     if (LIMIT > 0 && files.length > LIMIT) files = files.slice(0, LIMIT);
     console.log(`[DEBUG] 文件遍历完成，符合条件的文件数=${files.length}`);
     console.log(`总文件 ${all.length}，已上传 ${uploaded.size}，本次待上传 ${files.length}（并发 ${CONCURRENCY}）`);
