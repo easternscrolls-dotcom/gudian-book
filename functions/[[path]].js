@@ -18,14 +18,6 @@ export async function onRequest(context) {
     const ua = request.headers.get("User-Agent") || "";
     const path = url.pathname;
 
-    // 运维探针：用于确认 Pages Functions 是否真的部署生效（确认后可删除）
-    if (path === "/__fncheck") {
-        return new Response("FN-DEPLOYED-OK " + new Date().toISOString(), {
-            status: 200,
-            headers: { "Content-Type": "text/plain; charset=utf-8" }
-        });
-    }
-
     if (CRAWLER_UA.test(ua)) {
         let key = null;
         if (path === "/read.html") {
