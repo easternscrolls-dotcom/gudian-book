@@ -23,9 +23,15 @@ function isCrawler(ua) {
     return !!ua && CRAWLER_UA.test(ua);
 }
 
+// 列表页快照：爬虫访问站点根（/ 或 /index.html）时返回 snapshot/index.html
+function isListingPath(url) {
+    const p = url.pathname.replace(/\/+$/, "");
+    return p === "" || p === "/index.html";
+}
+
 // 从 read.html?book=library/books/<分类>/<书名>.br 推导 R2 快照 key
 // 对应快照文件命名：snapshot/<分类>/<书名>.html
-function snapshotKeyFromRequest(url) {
+function bookSnapshotKeyFromRequest(url) {
     const path = url.pathname.replace(/\/+$/, "");
     if (path !== "/read.html") return null;
     const book = url.searchParams.get("book");
@@ -35,14 +41,20 @@ function snapshotKeyFromRequest(url) {
     return "snapshot/" + m[1] + ".html";
 }
 
+// 综合判断爬虫应返回的 R2 快照 key；非爬虫页面返回 null
+function snapshotKeyForCrawler(url) {
+    if (isListingPath(url)) return "snapshot/index.html";
+    return bookSnapshotKeyFromRequest(url);
+}
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
         const ua = request.headers.get("User-Agent") || "";
 
-        // —— 爬虫 + 命中书籍快照：直接吐 R2 静态 HTML ——
+        // —— 爬虫 + 命中快照：直接吐 R2 静态 HTML ——
         if (isCrawler(ua)) {
-            const key = snapshotKeyFromRequest(url);
+            const key = snapshotKeyForCrawler(url);
             if (key) {
                 try {
                     const obj = await env.BOOK_SNAPSHOT.get(key);

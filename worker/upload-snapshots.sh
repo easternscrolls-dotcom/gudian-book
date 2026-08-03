@@ -22,7 +22,7 @@ while IFS= read -r -d '' f; do
     # 相对 snapshot/ 的路径，作为 R2 key（如 snapshot/文总集/全卷本.html）
     rel="${f#"$SNAPSHOT_DIR"/}"
     key="snapshot/$rel"
-    if wrangler r2 object put "$BUCKET/$key" --file "$f" >/dev/null 2>&1; then
+    if wrangler r2 object put "$BUCKET/$key" --file "$f" --remote >/dev/null 2>&1; then
         count=$((count+1))
         if (( count % 200 == 0 )); then
             echo "已上传 $count 个..."

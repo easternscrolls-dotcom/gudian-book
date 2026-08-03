@@ -1,5 +1,5 @@
 name = "gudian-book-crawler-router"
-main = "worker/crawler-router.js"
+main = "crawler-router.js"
 compatibility_date = "2024-09-23"
 
 # 回源到 Pages 前端的地址（普通用户请求转发到这里）
