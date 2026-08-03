@@ -13,21 +13,58 @@
         <p>收录明清小说、地方志、诸子杂书、传统戏曲（公版古籍）</p>
     </header>
 
-    <div class="book-list">
-        <!-- 示例书籍，后续自行增减 -->
-        <div class="book-item" onclick="location.href='read.html?book=book/001/chapter1.br&title=三国演义'">
-            <h3>三国演义</h3>
-            <div class="desc">元末明初 · 罗贯中</div>
-        </div>
-        <div class="book-item" onclick="location.href='read.html?book=book/002/chapter1.br&title=西游记'">
-            <h3>西游记</h3>
-            <div class="desc">明 · 吴承恩</div>
-        </div>
-        <div class="book-item" onclick="location.href='read.html?book=book/003/chapter1.br&title=聊斋志异'">
-            <h3>聊斋志异</h3>
-            <div class="desc">清 · 蒲松龄</div>
-        </div>
-    </div>
+    <!-- 加载状态 -->
+    <div id="list-loading" class="load-text">正在加载书目……</div>
+    <!-- 书单容器（由 books.br / books.json 动态渲染） -->
+    <div class="book-list" id="bookListWrap"></div>
 </div>
+
+<!-- 书单加载与 Brotli 解压逻辑（原生 DecompressionStream，无外部 CDN） -->
+<script src="./js/reader.js"></script>
+<script>
+    (async () => {
+        const wrap = document.getElementById("bookListWrap");
+        const loading = document.getElementById("list-loading");
+
+        let books = [];
+        try {
+            books = await loadBookCatalog();
+        } catch (err) {
+            console.error("书单加载失败", err);
+            loading.innerText = "书单加载失败：" + err.message;
+            loading.className = "load-text error";
+            return;
+        }
+
+        if (!Array.isArray(books) || books.length === 0) {
+            loading.innerText = "书单为空";
+            loading.className = "load-text error";
+            return;
+        }
+
+        loading.style.display = "none";
+
+        books.forEach((book) => {
+            const item = document.createElement("div");
+            item.className = "book-item";
+
+            const h3 = document.createElement("h3");
+            h3.innerText = book.title || "（无名）";
+
+            const desc = document.createElement("div");
+            desc.className = "desc";
+            desc.innerText = book.author || book.category || "佚名";
+
+            item.appendChild(h3);
+            item.appendChild(desc);
+            item.onclick = () => {
+                location.href =
+                    "read.html?book=" + encodeURIComponent(book.file) +
+                    "&title=" + encodeURIComponent(book.title || "");
+            };
+            wrap.appendChild(item);
+        });
+    })();
+</script>
 </body>
 </html>

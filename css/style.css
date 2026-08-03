@@ -89,3 +89,13 @@ header p{
     font-size:16px;
     color:#777;
 }
+
+/* 错误提示（解压/加载失败） */
+.error{
+    color:#c0392b;
+}
+
+/* 隐藏工具类 */
+.hidden{
+    display:none;
+}

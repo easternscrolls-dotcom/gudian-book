@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古籍阅读</title>
     <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -10,29 +11,45 @@
     <a href="./index.html" class="back-btn">← 返回书库</a>
     <h2 class="article-title" id="book-title">加载中</h2>
     <div class="article-wrap">
-        <div id="article-content" class="load-text">正在加载正文...</div>
+        <div id="article-content" class="load-text">正在加载章节内容……</div>
     </div>
 </div>
 
-<!-- 引入brotli解压CDN -->
-<script src="https://cdn.jsdelivr.net/npm/brotli-wasm@2.0.0/brotli.min.js"></script>
+<!-- 书单与 Brotli 解压逻辑（原生 DecompressionStream，无外部 CDN） -->
 <script src="./js/reader.js"></script>
 <script>
-    (async ()=>{
+    (async () => {
         const searchParams = new URLSearchParams(location.search);
         const bookPath = searchParams.get("book");
         const bookName = searchParams.get("title") || "古籍";
+        const contentEl = document.getElementById("article-content");
         document.getElementById("book-title").innerText = bookName;
 
-        if(!bookPath){
-            document.getElementById("article-content").innerText = "链接参数错误";
+        if (!bookPath) {
+            contentEl.innerText = "链接参数错误（缺少 book 参数）";
+            contentEl.className = "load-text error";
             return;
         }
-        const text = await loadChapter(bookPath);
-        if(text){
-            document.getElementById("article-content").innerText = text;
-        }else{
-            document.getElementById("article-content").innerText = "章节加载失败，文件不存在或网络异常";
+
+        if (!nativeBrotliSupported()) {
+            contentEl.innerHTML = '<p class="error">当前浏览器不支持原生 Brotli 解压，请更换为较新版本的 Chrome / Edge / Firefox / Safari。</p>';
+            contentEl.className = "load-text error";
+            return;
+        }
+
+        try {
+            const text = await loadChapter(bookPath);
+            if (text && text.length) {
+                contentEl.innerText = text;
+                contentEl.className = ""; // 移除 load-text 占位样式，恢复正文排版
+            } else {
+                contentEl.innerText = "章节内容为空或文件已损坏";
+                contentEl.className = "load-text error";
+            }
+        } catch (err) {
+            console.error("章节加载异常", err);
+            contentEl.innerHTML = '<p class="error">正文加载失败：' + err.message + '</p>';
+            contentEl.className = "load-text error";
         }
     })();
 </script>
