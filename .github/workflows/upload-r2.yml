@@ -1,0 +1,35 @@
+name: 自动上传资源到Cloudflare R2
+run-name: ${{ github.actor }} 推送古籍资源至R2
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'library/**'
+      - 'snapshot/**'
+
+jobs:
+  upload-r2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取仓库文件
+        uses: actions/checkout@v4
+
+      - name: 安装Node & Wrangler
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install -g wrangler
+
+      - name: 上传小说.br正文（递归所有子目录）→ R2 book/
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          wrangler r2 object put gudian-book/book/ --local-dir=./library/books --recursive --ce br
+
+      - name: 上传爬虫静态HTML快照 → R2 snapshot/
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          wrangler r2 object put gudian-book/snapshot/ --local-dir=./snapshot/html --recursive
