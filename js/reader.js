@@ -97,3 +97,126 @@ async function loadChapter(filePath) {
     }
     return await decompressBrotliResponse(resp);
 }
+
+// ===================== 章节识别与目录渲染 =====================
+// 把整本书纯文本解析为带章节锚点的 HTML，并在容器上方生成可点击目录。
+// 支持：第X章 / 第X回 / 第X卷 / 卷X / 序 / 前言 / 引言 / 楔子
+const CHAPTER_RE = /^(第[一二三四五六七八九十百千万〇0-9\s]+章|第[一二三四五六七八九十百千万〇0-9\s]+回|第[一二三四五六七八九十百千万〇0-9\s]+卷|卷[一二三四五六七八九十百千万〇0-9\s]+|序[言]?|前言|引言|楔子)([　 \t]|$)/;
+
+function escapeHtml(str) {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function cleanTitle(str) {
+    return str.replace(/\s+/g, " ").trim();
+}
+
+function renderBookText(container, text) {
+    const lines = text.split(/\r?\n/);
+    const chapterIds = new Array(lines.length).fill(null);   // 每行若识别为章节标题，记录 id
+    const bodyIdByTitle = new Map();                          // 正文区标题 -> 首个 id
+    const toc = [];                                           // 正文区目录项
+
+    let inBody = false;
+
+    // 第一遍：识别章节、判断是否进入正文、分配 id
+    // 所有章节标题都进入目录；同时记录每个标题在正文区首次出现的 id，
+    // 用于让目录区的同名标题也能点击跳转到正文。
+    lines.forEach((raw, idx) => {
+        const line = raw.trim();
+        if (!line) return;
+        const isChapter = CHAPTER_RE.test(line);
+        if (isChapter) {
+            const id = "ch-" + idx;
+            chapterIds[idx] = id;
+            const key = cleanTitle(line);
+            if (inBody && !bodyIdByTitle.has(key)) bodyIdByTitle.set(key, id);
+            toc.push({ id, title: line });
+        } else if (!inBody && line.length >= 50) {
+            // 出现长段落，认为已离开目录区进入正文
+            inBody = true;
+        }
+    });
+
+    // 兜底：若整本书都没识别到正文区章节（目录即正文、或文件很短），
+    // 直接用每个标题自身作为正文锚点。
+    if (bodyIdByTitle.size === 0) {
+        lines.forEach((raw, idx) => {
+            const line = raw.trim();
+            if (!line || !chapterIds[idx]) return;
+            const key = cleanTitle(line);
+            if (!bodyIdByTitle.has(key)) bodyIdByTitle.set(key, chapterIds[idx]);
+        });
+    }
+
+    // 去重生成目录：同名标题只保留指向正文区的那一项（无正文区则保留自身）
+    const tocSeen = new Set();
+    const uniqueToc = [];
+    toc.forEach(item => {
+        const key = cleanTitle(item.title);
+        const targetId = bodyIdByTitle.get(key) || item.id;
+        if (!tocSeen.has(targetId)) {
+            tocSeen.add(targetId);
+            uniqueToc.push({ id: targetId, title: item.title });
+        }
+    });
+
+    // 第二遍：生成正文 HTML
+    let bodyHtml = "";
+    lines.forEach((raw, idx) => {
+        const line = raw.trim();
+        if (!line) {
+            bodyHtml += "<br>\n";
+            return;
+        }
+        if (chapterIds[idx]) {
+            const id = chapterIds[idx];
+            const key = cleanTitle(line);
+            const bodyId = bodyIdByTitle.get(key);
+            // 目录区的同名章节标题做成链接，点击跳转到正文对应位置
+            if (bodyId && bodyId !== id) {
+                bodyHtml += '<h3 id="' + id + '" class="chapter-title toc-link"><a href="#' + bodyId + '" class="chapter-anchor">' + escapeHtml(line) + "</a></h3>\n";
+            } else {
+                bodyHtml += '<h3 id="' + id + '" class="chapter-title">' + escapeHtml(line) + "</h3>\n";
+            }
+        } else {
+            bodyHtml += '<p class="para">' + escapeHtml(line) + "</p>\n";
+        }
+    });
+
+    // 创建/复用目录面板，插入到正文容器之前
+    let tocPanel = document.getElementById("toc-panel");
+    if (!tocPanel) {
+        tocPanel = document.createElement("nav");
+        tocPanel.id = "toc-panel";
+        container.parentNode.insertBefore(tocPanel, container);
+    }
+
+    if (uniqueToc.length) {
+        tocPanel.innerHTML =
+            '<button id="toc-toggle" type="button" aria-expanded="false">目录</button>' +
+            '<div id="toc-list" class="hidden"><ul>' +
+            uniqueToc.map(t => '<li><a href="#' + t.id + '">' + escapeHtml(t.title) + "</a></li>").join("") +
+            "</ul></div>";
+        tocPanel.classList.remove("hidden");
+
+        const toggle = tocPanel.querySelector("#toc-toggle");
+        const list = tocPanel.querySelector("#toc-list");
+        if (toggle && list) {
+            toggle.addEventListener("click", () => {
+                const nowHidden = list.classList.toggle("hidden");
+                toggle.setAttribute("aria-expanded", String(!nowHidden));
+            });
+        }
+    } else {
+        tocPanel.classList.add("hidden");
+    }
+
+    container.innerHTML = '<div id="book-body">' + bodyHtml + "</div>";
+    container.classList.add("rendered");
+}

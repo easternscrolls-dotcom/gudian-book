@@ -34,8 +34,7 @@
         try {
             const text = await loadChapter(bookPath);
             if (text && text.length) {
-                contentEl.innerText = text;
-                contentEl.className = ""; // 移除 load-text 占位样式，恢复正文排版
+                renderBookText(contentEl, text);
             } else {
                 contentEl.innerText = "章节内容为空或文件已损坏";
                 contentEl.className = "load-text error";
